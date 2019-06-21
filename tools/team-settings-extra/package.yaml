@@ -16,6 +16,7 @@ dependencies:
   - brig-types
   - cassava
   - email-validate
+  - galley-types
   - getopt-generics
   - http-client
   - imports

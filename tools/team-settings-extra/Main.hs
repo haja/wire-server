@@ -5,6 +5,7 @@ module Main where
 
 import Brig.Types.Activation
 import Brig.Types.User
+import Brig.Types.Intra
 import Data.Aeson
 import Data.Id
 import Data.String.Conversions
@@ -172,7 +173,7 @@ post /i/teams/{id}/members -d'{ "member": { "user": "990fc314-943c-11e9-9364-3f3
 bulkCreateTeamMembers :: ShellEnv -> Email -> File -> IO ()
 bulkCreateTeamMembers env teamAdminEmail userRecordsFile = do
   userRecords <- readUsers userRecordsFile
-  tid <- undefined teamAdminEmail
+  tid <- getTeamAdminEmail env teamAdminEmail
   forM_ userRecords $ \userRec -> do
     uid <- createUserNoVerify env $ simpleNewUser userRec
     addUserToTeam env uid tid
@@ -186,6 +187,9 @@ createUserNoVerify env newUser = fmap extr . callBrig env $ createUserNoVerify_ 
     extr :: Headers '[Header "Location" UserId] SelfProfile -> UserId
     extr = Brig.Types.User.userId . selfUser . getResponse
 
+getTeamAdminEmail :: ShellEnv -> Email -> IO TeamId
+getTeamAdminEmail = undefined
+
 registerTeamAdmin :: ShellEnv -> NewUser -> IO ()
 registerTeamAdmin env = void . callBrig env . registerTeamAdmin_ . NewUserPublic
 
@@ -193,10 +197,12 @@ addUserToTeam :: ShellEnv -> UserId -> TeamId -> IO ()
 addUserToTeam env uid tid = void . callGalley env $ addUserToTeam_ tid (simpleNewTeamMember uid)
 
 createUserNoVerify_ :: NewUser -> SC.ClientM (Headers '[Header "Location" UserId] SelfProfile)
+getTeamAdminEmail_ :: Email -> SC.ClientM [UserAccount]
 registerTeamAdmin_ :: NewUserPublic -> SC.ClientM SelfProfile
 addUserToTeam_ :: TeamId -> NewTeamMember -> SC.ClientM NoContent
 
 ( createUserNoVerify_ :<|>
+  getTeamAdminEmail_ :<|>
   registerTeamAdmin_ :<|>
   addUserToTeam_
   ) = SC.client api
@@ -215,6 +221,11 @@ data API route = API
       :> ReqBody NewUser
       :> Post (Headers '[Servant.Header "Location" UserId] SelfProfile)
      -- handler: createUserNoVerify
+
+  , _getUsersByEmail :: route :- "users"
+      :> QueryParamStrict "email" Email
+      :> Get [UserAccount]
+     -- handler: listAccountsByIdentity
 
 
   -- Users.hs
