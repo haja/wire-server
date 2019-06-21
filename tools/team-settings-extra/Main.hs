@@ -4,22 +4,25 @@
 module Main where
 
 import Brig.Types.Activation
-import Brig.Types.User
 import Brig.Types.Intra
+import Brig.Types.User
+import Control.Exception
 import Data.Aeson
 import Data.Id
 import Data.String.Conversions
 import Galley.Types.Teams
 import GHC.Generics (Generic)
-import Imports
+import Imports hiding (error)
 import qualified Data.Csv as Csv
 import qualified Data.UUID as UUID
 import qualified Network.HTTP.Client as HTTP
 import qualified Servant.API as Servant
 import qualified Servant.Client as SC
+import qualified Servant.Client.Generic as SCG
 import Servant.API.Generic
 import Servant.API hiding (Get, Put, Post, Delete, ReqBody, QueryParam, QueryParam')
 import System.Environment
+import System.IO.Unsafe (unsafePerformIO)
 import WithCli
 
 
@@ -92,7 +95,7 @@ instance Argument Command where
   argumentType Proxy = show @[Command] [minBound..]
   parseArgument x = case [ x' | x' <- [minBound..], show x' == x ] of
     [x'] -> Just x'
-    bad  -> error $ "invalid command: " <> show bad
+    bad  -> unsafeError $ "invalid command: " <> show bad
 
 
 data File = File FilePath
@@ -157,6 +160,7 @@ can (probably?) be called in front of and behind nginz.
 -}
 createTeamWithAdmin :: ShellEnv -> Name -> Name -> Email -> IO ()
 createTeamWithAdmin _env _teamName _userName _userEmail = do
+  _ <- undefined registerTeamAdmin
   pure ()
 
 
@@ -188,7 +192,11 @@ createUserNoVerify env newUser = fmap extr . callBrig env $ createUserNoVerify_ 
     extr = Brig.Types.User.userId . selfUser . getResponse
 
 getTeamAdminEmail :: ShellEnv -> Email -> IO TeamId
-getTeamAdminEmail = undefined
+getTeamAdminEmail env email = do
+  accounts <- callBrig env (getTeamAdminEmail_ $ Just email)
+  case [ accountUser acc | acc <- accounts, accountStatus acc == Active ] of
+    [usr] -> maybe (error "getTeamAdminEmail: no email") pure (userTeam usr)
+    bad -> error ("getTeamAdminEmail: " <> show bad)
 
 registerTeamAdmin :: ShellEnv -> NewUser -> IO ()
 registerTeamAdmin env = void . callBrig env . registerTeamAdmin_ . NewUserPublic
@@ -196,16 +204,19 @@ registerTeamAdmin env = void . callBrig env . registerTeamAdmin_ . NewUserPublic
 addUserToTeam :: ShellEnv -> UserId -> TeamId -> IO ()
 addUserToTeam env uid tid = void . callGalley env $ addUserToTeam_ tid (simpleNewTeamMember uid)
 
-createUserNoVerify_ :: NewUser -> SC.ClientM (Headers '[Header "Location" UserId] SelfProfile)
-getTeamAdminEmail_ :: Email -> SC.ClientM [UserAccount]
-registerTeamAdmin_ :: NewUserPublic -> SC.ClientM SelfProfile
-addUserToTeam_ :: TeamId -> NewTeamMember -> SC.ClientM NoContent
 
-( createUserNoVerify_ :<|>
-  getTeamAdminEmail_ :<|>
-  registerTeamAdmin_ :<|>
-  addUserToTeam_
-  ) = SC.client api
+createUserNoVerify_ :: NewUser -> SC.ClientM (Headers '[Header "Location" UserId] SelfProfile)
+getTeamAdminEmail_  :: Maybe Email -> SC.ClientM [UserAccount]
+registerTeamAdmin_  :: NewUserPublic -> SC.ClientM SelfProfile
+addUserToTeam_      :: TeamId -> NewTeamMember -> SC.ClientM NoContent
+
+API
+  { _postUsers       = createUserNoVerify_
+  , _getUsersByEmail = getTeamAdminEmail_
+  , _postRegister    = registerTeamAdmin_
+  , _addTeamMember   = addUserToTeam_
+  }
+  = SCG.genericClient
 
 
 -- * copied from /libs/brig-types/src/Brig/Types/Servant/API/*
@@ -272,6 +283,9 @@ simpleNewUser (UserRecord name email) = NewUser
 instance ToHttpApiData (Id a) where
   toUrlPiece (Id uuid) = UUID.toText $ uuid
 
+instance ToHttpApiData Email where
+  toUrlPiece = fromEmail
+
 instance FromHttpApiData (Id a) where
   parseUrlPiece txt = maybe (Left $ "Bad UUID: " <> cs (show txt)) (Right . Id) $ UUID.fromText txt
 
@@ -299,3 +313,12 @@ type InternalZConn = Header "Z-Connection" ConnId
 
 data AuthZUser
 data AuthZConn
+
+
+-- * stuff
+
+error :: String -> IO a
+error = throwIO . ErrorCall
+
+unsafeError :: String -> a
+unsafeError = unsafePerformIO . error

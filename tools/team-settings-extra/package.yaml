@@ -24,6 +24,7 @@ dependencies:
   - mtl
   - servant
   - servant-client
+  - servant-client-core
   - string-conversions
   - text
   - types-common
