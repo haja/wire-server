@@ -130,7 +130,7 @@ run :: Command -> Name -> Email -> IO ()
 run cmd name email = do
   env <- loadShellEnv
   case cmd of
-    CreateTeamWithAdmin -> createTeamWithAdmin env name email
+    CreateTeamWithAdmin -> createTeamWithAdmin env undefined name email
     BulkCreateTeamMembers -> bulkCreateTeamMembers env undefined undefined
 
 
@@ -184,7 +184,7 @@ createUserNoVerify :: ShellEnv -> NewUser -> IO UserId
 createUserNoVerify env newUser = fmap extr . callBrig env $ createUserNoVerify_ newUser
   where
     extr :: Headers '[Header "Location" UserId] SelfProfile -> UserId
-    extr = undefined
+    extr = Brig.Types.User.userId . selfUser . getResponse
 
 registerTeamAdmin :: ShellEnv -> NewUser -> IO ()
 registerTeamAdmin env = void . callBrig env . registerTeamAdmin_ . NewUserPublic
@@ -238,7 +238,7 @@ data API route = API
 -- * should be copied somewhere:
 
 simpleNewTeamMember :: UserId -> NewTeamMember
-simpleNewTeamMember = undefined
+simpleNewTeamMember uid = newNewTeamMember $ newTeamMember uid (rolePermissions RoleMember) Nothing
 
 simpleNewUser :: UserRecord -> NewUser
 simpleNewUser (UserRecord name email) = NewUser
