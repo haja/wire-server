@@ -1,0 +1,31 @@
+zmessaging-android = wire-android-sync-engine
+
+# wire backend
+
+## where useful stuff might be
+- Brig.IO.Intra has push and notification methods
+- push API and notification API: Gundeck.API
+    - Gundeck.Push
+        - pushAll has switch for websocket and native push
+        - mkNotificationAndTargets seems promising
+        - something about transport preference further down as helper for nativeTargets
+    - Gundeck.Push.Native.Serialise
+    - Gundeck.Aws
+    - Gundeck.Types.Push.V2
+        - has data Route with native/webSocket push strategies
+    - Gundeck.Push.Native.Types
+        - data Address?
+        - ConnId? defined in Data.Id in types-common
+- libs/brig-types Brig.Types.Swagger mentions GCM and APNS
+- brig schema V9 and V13 mention GCM
+- Brig.API.User has createUser and other user stuff
+
+## TODO
+- wo wird AWS fürs GCM-versenden gecalled? dort reinhooken
+- wo wird festgestellt, welches OS der client hat? vl kann man dort reinhooken, um auf meinen push adapter umzuleiten
+
+mögliche hooks sind mit "-- TODO push:" markiert
+
+## findings
+- UserId dürfte für push empfänger verwendet werden -> dort reinhooken, wo das auf native push aufgelöst wird?
+
