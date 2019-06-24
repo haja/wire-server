@@ -35,6 +35,7 @@ push _    [] = return []
 push m   [a] = pure <$> push1 m a
 push m addrs = mapConcurrently (push1 m) addrs
 
+-- TODO push: hook here, switch to pushAdapter
 push1 :: NativePush -> Address -> Gundeck Result
 push1 m a = do
     e <- view awsEnv

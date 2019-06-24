@@ -32,7 +32,7 @@ import Gundeck.Types.Push.V2 (PushToken)
 -- | Native push address information of a device.
 data Address = Address
     { _addrUser      :: !UserId
-    , _addrEndpoint  :: !EndpointArn
+    , _addrEndpoint  :: !EndpointArn -- TODO push: we need to change this, must be an HTTP endpoint for pushAdapter. including TLS cert maybe?
     , _addrConn      :: !ConnId
     , _addrPushToken :: !PushToken
     }
@@ -78,6 +78,7 @@ data Failure
     | PushException !SomeException
     deriving (Show)
 
+-- TODO push: hook push adapter here?
 data NativePush = NativePush
     { npNotificationid :: NotificationId
     , npPriority       :: Priority
