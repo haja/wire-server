@@ -19,7 +19,7 @@ WORKDIR /
 # roughly 2019-03-28, they are included in prebuilder as well.
 
 RUN apk add --no-cache git ncurses sed && \
-    git clone -b develop https://github.com/wireapp/wire-server.git && \
+    git clone -b "image/2.52.0" https://github.com/wireapp/wire-server.git && \
     cd /wire-server && \
     stack update && \
     echo "allow-different-user: true" >> /root/.stack/config.yaml && \

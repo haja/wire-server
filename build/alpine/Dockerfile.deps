@@ -7,6 +7,7 @@ RUN apk add --no-cache cargo libsodium-dev git && \
     cd /tmp && \
     git clone https://github.com/wireapp/cryptobox-c.git && \
     cd cryptobox-c && \
+    git checkout 7c5c2208e0c3039eac9ffe84db0ee7b001a28d2c && \
     cargo build --release
 
 # Minimal dependencies for alpine-compiled, dynamically linked wire-server Haskell services
