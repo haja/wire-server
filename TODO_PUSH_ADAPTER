@@ -2,6 +2,30 @@ zmessaging-android = wire-android-sync-engine
 
 # wire backend
 
+## how to run
+with docker (debian has a tls bug -> docker solves this)
+
+read build/alpine/README.md for initial compilation of docker dependencies
+
+### if haskell code has changed
+from wire-server dir:
+```
+sudo make docker-intermediate # recompiles haskell code, takes a while
+```
+```
+sudo make docker-services # just cuts the intermediate image up
+```
+to start fake AWS:
+```
+sudo deploy/docker-ephemeral/run.sh
+```
+
+and finally to run wire-server:
+```
+sudo deploy/services-demo/demo.sh docker
+```
+
+
 ## where useful stuff might be
 - Brig.IO.Intra has push and notification methods
 - push API and notification API: Gundeck.API
@@ -29,3 +53,5 @@ mögliche hooks sind mit "-- TODO push:" markiert
 ## findings
 - UserId dürfte für push empfänger verwendet werden -> dort reinhooken, wo das auf native push aufgelöst wird?
 
+# general notes
+- registration via app: email has to be @wire.com -> see Brig.Whitelist:38 (not sure this is the right hook)
