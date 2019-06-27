@@ -54,4 +54,5 @@ mögliche hooks sind mit "-- TODO push:" markiert
 - UserId dürfte für push empfänger verwendet werden -> dort reinhooken, wo das auf native push aufgelöst wird?
 
 # general notes
-- registration via app: email has to be @wire.com -> see Brig.Whitelist:38 (not sure this is the right hook)
+- registration via app: email has to be @wire.com -> see Brig.Whitelist:38 (not sure this is the right hook) -> fixed
+- launching wire-android with buildVariant "interalDebug" -> uses correct zmessaging dev version
