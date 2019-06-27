@@ -34,8 +34,9 @@ verify (Whitelist url user pass) key = if isKnownDomain key
             _   -> throwM $
                 HttpExceptionRequest rq (StatusCodeException (rsp { responseBody = () }) mempty)
   where
-    isKnownDomain (Left e) = emailDomain e == "wire.com"
-    isKnownDomain _        = False
+    -- TODO hack to disable whitelisting
+    -- isKnownDomain (Left e) = emailDomain e == "wire.com"
+    isKnownDomain _        = True
 
     urlEmail = queryItem "email" . encodeUtf8 . fromEmail
     urlPhone = queryItem "mobile" . encodeUtf8 . fromPhone
