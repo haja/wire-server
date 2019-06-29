@@ -1,0 +1,19 @@
+
+# Produces rebuildable docker image. compiled with `make fast`.
+# this image can be used in a container to rebuild with updated sources, not recompiling everything.
+
+# Requires docker version >= 17.05 (requires support for multi-stage builds)
+
+ARG builder=quay.io/wire/alpine-builder
+
+#--- Builder stage ---
+FROM ${builder} as builder
+
+WORKDIR /wire-server/
+
+COPY . /wire-server/
+
+RUN make clean fast
+
+CMD ["/bin/sh"]
+

@@ -104,6 +104,31 @@ docker-intermediate:
 	docker tag $(DOCKER_USER)/alpine-intermediate:$(DOCKER_TAG) $(DOCKER_USER)/alpine-intermediate:latest;
 	if test -n "$$DOCKER_PUSH"; then docker login -u $(DOCKER_USERNAME) -p $(DOCKER_PASSWORD); docker push $(DOCKER_USER)/alpine-intermediate:$(DOCKER_TAG); docker push $(DOCKER_USER)/alpine-intermediate:latest; fi;
 
+.PHONY: docker-rebuildable
+docker-rebuildable:
+	# `docker-rebuildable` needs to be built once and then can be used as a base to rebuild i.e. run just `make docker-rebuild`
+	docker build -t $(DOCKER_USER)/alpine-rebuildable:$(DOCKER_TAG) -f build/alpine/Dockerfile.rebuildable --build-arg builder=$(DOCKER_USER)/alpine-builder .;
+	docker tag $(DOCKER_USER)/alpine-rebuildable:$(DOCKER_TAG) $(DOCKER_USER)/alpine-rebuildable:latest;
+
+.PHONY: docker-rebuild
+docker-rebuild:
+	# `docker-rebuild` rebuilds haskell sources in the rebuildable image created by `docker-rebuildable` and then produces an intermediate docker image
+	docker image ls | grep $(DOCKER_USER)/alpine-rebuildable > /dev/null || (echo "'make docker-rebuildable' required."; exit 1)
+	# create and run container in background
+	docker run -dt --name update-rebuilder $(DOCKER_USER)/alpine-rebuildable:$(DOCKER_TAG)
+	#  copy all sources except `.stack-work` and useless stuff from `wire-server` (THIS REQUIRES DOCKER >= 1.8) and rebuild
+	tar -c --exclude=".stack-work" --exclude=".git" --exclude="dist" . | docker cp - update-rebuilder:wire-server
+	docker exec update-rebuilder sh -c "make fast"
+	#  stop and commit container as new `alpine-rebuildable`
+	docker stop update-rebuilder
+	docker commit --message="rebuilded" update-rebuilder $(DOCKER_USER)/alpine-rebuildable:$(DOCKER_TAG) 
+	docker tag $(DOCKER_USER)/alpine-rebuildable:$(DOCKER_TAG) $(DOCKER_USER)/alpine-rebuildable:latest;
+	# remove container so next run can reuse the name
+	docker container rm update-rebuilder
+	# minify to be intermediate-compatible
+	docker build -t $(DOCKER_USER)/alpine-intermediate:$(DOCKER_TAG) -f build/alpine/Dockerfile.rebuilded-intermediate --build-arg deps=$(DOCKER_USER)/alpine-deps .;
+	docker tag $(DOCKER_USER)/alpine-intermediate:$(DOCKER_TAG) $(DOCKER_USER)/alpine-intermediate:latest;
+
 .PHONY: docker-migrations
 docker-migrations:
 	# `docker-migrations` needs to be built whenever docker-intermediate was rebuilt AND new schema migrations were added.

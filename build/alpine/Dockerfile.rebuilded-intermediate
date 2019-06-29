@@ -1,0 +1,22 @@
+# Produces a minified rebuildable docker image, similar to intermediate docker image, with all executables under /dist
+
+# Requires docker version >= 17.05 (requires support for multi-stage builds)
+# Requires to have created the wire-server-rebuildable and wire-server-deps docker images
+# Usage example:
+#   (from wire-server root directory)
+#   make docker-rebuild
+
+ARG builder=quay.io/wire/alpine-rebuildable
+ARG deps=quay.io/wire/alpine-deps
+
+#--- rebuildable stage ---
+FROM ${builder} as builder
+
+WORKDIR /wire-server/
+
+#--- Minified stage ---
+FROM ${deps}
+
+COPY --from=builder /wire-server/dist/ /dist/
+# brig also needs some templates.
+COPY --from=builder /wire-server/services/brig/deb/opt/brig/templates/ /dist/templates/
