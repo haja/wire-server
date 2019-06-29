@@ -48,6 +48,7 @@ import qualified Gundeck.Notification.Data    as Stream
 import qualified Gundeck.Presence.Data        as Presence
 import qualified Gundeck.Push.Data            as Data
 import qualified Gundeck.Push.Native          as Native
+import qualified Gundeck.PushRelay            as PushRelay
 import qualified Gundeck.Push.Websocket       as Web
 import qualified Gundeck.Types.Presence       as Presence
 import qualified System.Logger.Class          as Log
@@ -339,23 +340,13 @@ addToken (uid ::: cid ::: req ::: _) = do
         let trp = t^.tokenTransport
         let app = t^.tokenApp
         let tok = t^.token
-        env <- view (options.optAws.awsArnEnv)
-        aws <- view awsEnv
-        ept <- Aws.execute aws (Aws.createEndpoint uid trp env app tok)
+        -- TODO push: hardcode relay connection here for now
+        ept <- PushRelay.create app tok
         case ept of
-            Left (Aws.EndpointInUse arn) -> do
-                Log.info $ "arn" .= toText arn ~~ msg (val "ARN in use")
-                update (n + 1) t arn
-            Left (Aws.AppNotFound app') -> do
-                Log.info $ msg ("Push token of unknown application: '" <> appNameText app' <> "'")
-                return (Left notFound)
-            Left (Aws.InvalidToken _) -> do
+            Left (_) -> do
                 Log.info $ "token" .= tokenText tok
-                        ~~ msg (val "Invalid push token.")
+                        ~~ msg (val "error creating token")
                 return (Left invalidToken)
-            Left (Aws.TokenTooLong l) -> do
-                Log.info $ msg ("Push token is too long: token length = " ++ show l)
-                return (Left tokenTooLong)
             Right arn -> do
                 Data.insert uid trp app tok arn cid (t^.tokenClient)
                 return (Right (mkAddr t arn))

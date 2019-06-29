@@ -360,11 +360,17 @@ newtype AppName = AppName
     { appNameText :: Text
     } deriving (Eq, Ord, Show, FromJSON, ToJSON, IsString)
 
+-- TODO push: add relayConnection and cert here?
+-- newtype RelayConnection = RelayConnection
+    -- { relayConnection :: Text
+    -- } deriving (Eq, Ord, Show, FromJSON, ToJSON, IsString)
+
 data PushToken = PushToken
     { _tokenTransport :: !Transport
     , _tokenApp       :: !AppName
     , _token          :: !Token
     , _tokenClient    :: !ClientId
+    --, _tokenRelayConnection :: !RelayConnection
     } deriving (Eq, Ord, Show)
 
 makeLenses ''PushToken
