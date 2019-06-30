@@ -113,21 +113,7 @@ docker-rebuildable:
 .PHONY: docker-rebuild
 docker-rebuild:
 	# `docker-rebuild` rebuilds haskell sources in the rebuildable image created by `docker-rebuildable` and then produces an intermediate docker image
-	docker image ls | grep $(DOCKER_USER)/alpine-rebuildable > /dev/null || (echo "'make docker-rebuildable' required."; exit 1)
-	# create and run container in background
-	docker run -dt --name update-rebuilder $(DOCKER_USER)/alpine-rebuildable:$(DOCKER_TAG)
-	#  copy all sources except `.stack-work` and useless stuff from `wire-server` (THIS REQUIRES DOCKER >= 1.8) and rebuild
-	tar -c --exclude=".stack-work" --exclude=".git" --exclude="dist" . | docker cp - update-rebuilder:wire-server
-	docker exec update-rebuilder sh -c "make fast"
-	#  stop and commit container as new `alpine-rebuildable`
-	docker stop update-rebuilder
-	docker commit --message="rebuilded" update-rebuilder $(DOCKER_USER)/alpine-rebuildable:$(DOCKER_TAG) 
-	docker tag $(DOCKER_USER)/alpine-rebuildable:$(DOCKER_TAG) $(DOCKER_USER)/alpine-rebuildable:latest;
-	# remove container so next run can reuse the name
-	docker container rm update-rebuilder
-	# minify to be intermediate-compatible
-	docker build -t $(DOCKER_USER)/alpine-intermediate:$(DOCKER_TAG) -f build/alpine/Dockerfile.rebuilded-intermediate --build-arg deps=$(DOCKER_USER)/alpine-deps .;
-	docker tag $(DOCKER_USER)/alpine-intermediate:$(DOCKER_TAG) $(DOCKER_USER)/alpine-intermediate:latest;
+	./build/alpine/docker-rebuild.sh $(DOCKER_USER) $(DOCKER_TAG)
 
 .PHONY: docker-migrations
 docker-migrations:
