@@ -25,10 +25,10 @@ lookup u c = foldM mk [] =<< retry x1 (query q (params c (Identity u)))
 
     mk as r = maybe as (:as) <$> mkAddr r
 
-insert :: MonadClient m => UserId -> Transport -> AppName -> Token -> EndpointArn -> ConnId -> ClientId -> m ()
-insert u t a p e o c = retry x5 $ write q (params Quorum (u, t, a, p, e, o, c))
+insert :: MonadClient m => UserId -> Transport -> AppName -> Token -> ConnId -> ClientId -> m ()
+insert u t a p o c = retry x5 $ write q (params Quorum (u, t, a, p, "", o, c))
   where
-    q :: PrepQuery W (UserId, Transport, AppName, Token, EndpointArn, ConnId, ClientId) ()
+    q :: PrepQuery W (UserId, Transport, AppName, Token, Text, ConnId, ClientId) ()
     q = "insert into user_push (usr, transport, app, ptoken, arn, connection, client) values (?, ?, ?, ?, ?, ?, ?)"
 
 delete :: MonadClient m => UserId -> Transport -> AppName -> Token -> m ()

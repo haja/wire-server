@@ -333,51 +333,26 @@ addToken (uid ::: cid ::: req ::: _) = do
         | otherwise = (x, old)
 
     continue t Nothing  = create (0 :: Int) t
-    continue t (Just a) = update (0 :: Int) t (a^.addrEndpoint)
+    continue t (Just a) = update (0 :: Int) t
 
-    create :: Int -> PushToken -> Gundeck (Either Response Address)
+    create :: Int -> PushToken -> Gundeck ()
     create n t = do
         let trp = t^.tokenTransport
         let app = t^.tokenApp
         let tok = t^.token
         -- TODO push: hardcode relay connection here for now
-        ept <- PushRelay.create app tok
-        case ept of
-            Left (_) -> do
-                Log.info $ "token" .= tokenText tok
-                        ~~ msg (val "error creating token")
-                return (Left invalidToken)
-            Right arn -> do
-                Data.insert uid trp app tok arn cid (t^.tokenClient)
-                return (Right (mkAddr t arn))
+        PushRelay.create app tok
+        Data.insert uid trp app tok cid (t^.tokenClient)
+        return ()
 
-    update :: Int -> PushToken -> SnsArn EndpointTopic -> Gundeck (Either Response Address)
-    update n t arn = do
+    update :: Int -> PushToken -> Gundeck ()
+    update n t = do
         when (n >= 3) $ do
-            Log.err $ msg (val "AWS SNS inconsistency w.r.t. " +++ toText arn)
+            Log.err $ msg (val "AWS SNS inconsitency log was here; too many update tries")
             throwM (Error status500 "server-error" "Server Error")
-        aws <- view awsEnv
-        ept <- Aws.execute aws (Aws.lookupEndpoint arn)
-        case ept of
-            Nothing -> create (n + 1) t
-            Just ep -> do
-                updateEndpoint uid t arn ep
-                Data.insert uid (t^.tokenTransport) (t^.tokenApp) (t^.token) arn cid
-                                (t^.tokenClient)
-                return (Right (mkAddr t arn))
-              `catch` \case
-                -- Note: If the endpoint was recently deleted (not necessarily
-                -- concurrently), we may get an EndpointNotFound error despite
-                -- the previous lookup, i.e. endpoint lookups may exhibit eventually
-                -- consistent semantics with regards to endpoint deletion (or
-                -- possibly updates in general). We make another attempt to (re-)create
-                -- the endpoint in these cases instead of failing immediately.
-                Aws.EndpointNotFound  {} -> create (n + 1) t
-                Aws.InvalidCustomData {} -> return (Left metadataTooLong)
-                ex                       -> throwM ex
+        Data.insert uid (t^.tokenTransport) (t^.tokenApp) (t^.token) cid (t^.tokenClient)
+        return ()
 
-    mkAddr t arn = Address uid arn cid
-                       (pushToken (t^.tokenTransport) (t^.tokenApp) (t^.token) (t^.tokenClient))
 
 -- | Update an SNS endpoint with the given user and token.
 updateEndpoint :: UserId -> PushToken -> EndpointArn -> Aws.SNSEndpoint -> Gundeck ()

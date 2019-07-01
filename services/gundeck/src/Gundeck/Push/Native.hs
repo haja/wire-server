@@ -149,12 +149,11 @@ deleteTokens tokens new = do
     migrate a a' u = do
         let oldArn = a^.addrEndpoint
         let oldTok = a^.addrToken
-        let newArn = a'^.addrEndpoint
         let newTok = a'^.addrToken
         xs <- Data.lookup u Data.Quorum
         forM_ xs $ \x ->
             when (x^.addrEndpoint == oldArn) $ do
-                Data.insert u (a^.addrTransport) (a^.addrApp) newTok newArn
+                Data.insert u (a^.addrTransport) (a^.addrApp) newTok
                               (a^.addrConn) (a^.addrClient)
                 Data.delete u (a^.addrTransport) (a^.addrApp) oldTok
 
