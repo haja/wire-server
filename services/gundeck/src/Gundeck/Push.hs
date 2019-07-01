@@ -22,8 +22,6 @@ import Data.Id
 import Data.List1 (List1, list1)
 import Data.Predicate ((:::)(..))
 import Data.Range
-import Gundeck.Aws (endpointUsers)
-import Gundeck.Aws.Arn
 import Gundeck.Env
 import Gundeck.Monad
 import Gundeck.Push.Native.Types
@@ -43,7 +41,6 @@ import qualified Data.Map                     as Map
 import qualified Data.Text                    as Text
 import qualified Data.Text.Encoding           as Text
 import qualified Data.UUID                    as UUID
-import qualified Gundeck.Aws                  as Aws
 import qualified Gundeck.Notification.Data    as Stream
 import qualified Gundeck.Presence.Data        as Presence
 import qualified Gundeck.Push.Data            as Data
@@ -319,9 +316,9 @@ addToken (uid ::: cid ::: req ::: _) = do
     Log.info $ "user"  .= UUID.toASCIIBytes (toUUID uid)
             ~~ "token" .= Text.take 16 (tokenText (new^.token))
             ~~ msg (val "Registering push token")
-    continue new cur >>= either return (\a -> do
-        Native.deleteTokens old (Just a)
-        return (success new))
+    continue new cur
+    Native.deleteTokens old Nothing
+    return (success new)
   where
     matching t (x, old) a
         | a^.addrTransport  == t^.tokenTransport &&
@@ -333,46 +330,17 @@ addToken (uid ::: cid ::: req ::: _) = do
         | otherwise = (x, old)
 
     continue t Nothing  = create (0 :: Int) t
-    continue t (Just a) = update (0 :: Int) t
+    continue _ (Just _) = return ()
 
     create :: Int -> PushToken -> Gundeck ()
-    create n t = do
+    create _ t = do
         let trp = t^.tokenTransport
         let app = t^.tokenApp
         let tok = t^.token
-        -- TODO push: hardcode relay connection here for now
+        -- TODO push: expecting hardcoded relay connection for now
         PushRelay.create app tok
         Data.insert uid trp app tok cid (t^.tokenClient)
         return ()
-
-    update :: Int -> PushToken -> Gundeck ()
-    update n t = do
-        when (n >= 3) $ do
-            Log.err $ msg (val "AWS SNS inconsitency log was here; too many update tries")
-            throwM (Error status500 "server-error" "Server Error")
-        Data.insert uid (t^.tokenTransport) (t^.tokenApp) (t^.token) cid (t^.tokenClient)
-        return ()
-
-
--- | Update an SNS endpoint with the given user and token.
-updateEndpoint :: UserId -> PushToken -> EndpointArn -> Aws.SNSEndpoint -> Gundeck ()
-updateEndpoint uid t arn e = do
-    env  <- view awsEnv
-    unless (equalTransport && equalApp) $ do
-        Log.err $ logMessage uid arn (t^.token) "Transport or app mismatch"
-        throwM $ Error status500 "server-error" "Server Error"
-    Log.info $ logMessage uid arn (t^.token) "Upserting push token."
-    let users = Set.insert uid (e^.endpointUsers)
-    Aws.execute env $ Aws.updateEndpoint users (t^.token) arn
-  where
-    equalTransport = t^.tokenTransport == arn^.snsTopic.endpointTransport
-    equalApp       = t^.tokenApp       == arn^.snsTopic.endpointAppName
-
-    logMessage a r tk m =
-          "user"  .= UUID.toASCIIBytes (toUUID a)
-       ~~ "token" .= Text.take 16 (tokenText tk)
-       ~~ "arn"   .= toText r
-       ~~ msg (val m)
 
 deleteToken :: UserId ::: Token ::: JSON -> Gundeck Response
 deleteToken (uid ::: tok ::: _) = do
@@ -386,21 +354,6 @@ success :: PushToken -> Response
 success t =
     let loc = Text.encodeUtf8 . tokenText $ t^.token in
     json t & setStatus status201 & addHeader hLocation loc
-
-invalidToken :: Response
-invalidToken = json (Error status400 "invalid-token" "Invalid push token")
-             & setStatus status404
-
-tokenTooLong :: Response
-tokenTooLong = json (Error status400 "token-too-long" "Push token length must be < 8192 for GCM or 400 for APNS")
-             & setStatus status413
-
-metadataTooLong :: Response
-metadataTooLong = json (Error status400 "metadata-too-long" "Tried to add token to endpoint resulting in metadata length > 2048")
-             & setStatus status413
-
-notFound :: Response
-notFound = empty & setStatus status404
 
 listTokens :: UserId ::: JSON -> Gundeck Response
 listTokens (uid ::: _) =
