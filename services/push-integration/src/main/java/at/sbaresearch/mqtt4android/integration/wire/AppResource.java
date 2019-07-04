@@ -1,10 +1,11 @@
 package at.sbaresearch.mqtt4android.integration.wire;
 
-import at.sbaresearch.mqtt4android.pinning.PinningSslFactory;
 import at.sbaresearch.mqtt4android.integration.wire.AppResource.PushRequest.Message;
+import at.sbaresearch.mqtt4android.pinning.PinningSslFactory;
 import io.vavr.Tuple;
-import io.vavr.Tuple3;
-import io.vavr.control.Option;
+import io.vavr.Tuple2;
+import io.vavr.collection.HashMap;
+import io.vavr.collection.Map;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Value;
@@ -16,13 +17,12 @@ import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.HttpClients;
 import org.springframework.boot.web.client.RestTemplateBuilder;
-import org.springframework.http.MediaType;
+import org.springframework.http.*;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.ByteArrayInputStream;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Consumer;
 
 @RestController
@@ -31,47 +31,64 @@ import java.util.function.Consumer;
 public class AppResource {
 
   @NonFinal
-  Option<Tuple3<String, String, byte[]>> currentRegId = Option.none();
+  Map<String, Tuple2<String, byte[]>> registrations = HashMap.empty();
   RestTemplateBuilder templateBuilder;
 
   public AppResource(RestTemplateBuilder builder) {
     this.templateBuilder = builder;
   }
 
-  @PostMapping(value = "/register",
+  @PostMapping(value = "/push/tokens",
       consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
-  public void register(@RequestBody AppRegistrationRequest request) {
-    log.info("register called with registrationId {}", request.getRegistrationId());
-    // TODO link with app instance / userId.. mocked for now
-    this.currentRegId = Option.of(Tuple.of(
-        request.getRegistrationId(),
-        request.getRelayUrl(),
-        request.getRelayCert()
-    ));
+  public ResponseEntity postPush(@RequestBody AppRegistrationRequest reg, @RequestHeader HttpHeaders headers) {
+    log.info("postPush called, req: {}", reg);
+
+    // TODO store in DB
+    registrations = registrations.put(reg.token.token, Tuple.of(reg.token.relayUrl, reg.token.relayCert));
+
+    val gundeckRequest = new GundeckPushRequest(
+        reg.token.token, reg.app, reg.transport, reg.client);
+    val downstream = new HttpEntity<>(gundeckRequest, headers);
+    return templateBuilder.build().postForEntity(
+        "http://gundeck:8086/push/tokens", downstream, Object.class);
+  }
+
+  @GetMapping("/push/tokens")
+  public ResponseEntity proxyGetPush(RequestEntity req) {
+    log.info("proxyPush called {}", req);
+    // TODO cache template, should be created only once
+    // TODO gundeck config hardcoded here
+    return templateBuilder.build().exchange("http://gundeck:8086/push/tokens", req.getMethod(), req, Object.class);
+  }
+
+  @DeleteMapping("/push/tokens/{pid}")
+  public ResponseEntity proxyDeletePush(RequestEntity req, @PathVariable String pid) {
+    log.info("proxyPush called {}", req);
+    // TODO cache template, should be created only once
+    // TODO gundeck config hardcoded here
+    return templateBuilder.build().exchange("http://gundeck:8086/push/tokens/{pid}", req.getMethod(), req, Object.class, pid);
   }
 
   @RequestMapping(value = "/send", method = RequestMethod.POST)
-  public void sendMessage(@RequestBody String message) {
-    log.info("sending message: {}", message);
-    currentRegId.peek(pushMessage(message))
+  public void sendMessage(@RequestBody String token) {
+    log.info("sending message for token: {}", token);
+    registrations.get(token).peek(pushMessage(token))
         .onEmpty(() -> log.warn("not registered, cannot send message"));
   }
 
-  private Consumer<Tuple3<String, String, byte[]>> pushMessage(
-      @RequestBody String message) {
+  private Consumer<Tuple2<String, byte[]>> pushMessage(
+      @RequestBody String token) {
     return regTuple -> {
-      val token = regTuple._1;
-      val data = new HashMap<String, String>();
-      data.put("message", message);
+      val data = HashMap.of("message", "dummy");
       val req = createPushRequest(data, token);
 
-      val cert = regTuple._3;
+      val cert = regTuple._2;
       try {
         val requestFactory = setupRequestFactory(cert);
         templateBuilder
             .requestFactory(() -> requestFactory)
             .build()
-            .postForLocation(regTuple._2, req);
+            .postForLocation(regTuple._1, req);
       } catch (Exception e) {
         log.error("cannot create ssl connection", e);
       }
@@ -97,9 +114,32 @@ public class AppResource {
 
   @Value
   public static class AppRegistrationRequest {
-    String registrationId;
-    String relayUrl;
-    byte[] relayCert;
+    Token token;
+    /*
+    these are needed for gundeck compat
+     */
+    String app;
+    String transport;
+    String client;
+
+    @Value
+    public static class Token {
+      String token;
+      String relayUrl;
+      byte[] relayCert;
+    }
+  }
+
+  /**
+   * compatible with gundeck POST /push/token
+   */
+  @Value
+  @Builder
+  public static class GundeckPushRequest {
+    String token;
+    String app;
+    String transport;
+    String client;
   }
 
   /**
