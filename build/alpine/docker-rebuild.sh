@@ -31,6 +31,7 @@ if docker exec update-rebuilder sh -c "make fast"; then
 
     # minify to be intermediate-compatible
     OLD_IMAGE=$(docker images ${DOCKER_USER}/alpine-intermediate:local --quiet)
+    echo "(DEBUG) old image: $OLD_IMAGE"
     docker build -t ${DOCKER_USER}/alpine-intermediate:${DOCKER_TAG} -f build/alpine/Dockerfile.rebuilded-intermediate --build-arg deps=${DOCKER_USER}/alpine-deps . &&
     docker tag ${DOCKER_USER}/alpine-intermediate:${DOCKER_TAG} ${DOCKER_USER}/alpine-intermediate:latest &&
 
