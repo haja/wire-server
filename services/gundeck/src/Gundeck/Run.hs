@@ -13,13 +13,10 @@ import Gundeck.API (sitemap)
 import Gundeck.Env
 import Gundeck.Monad
 import Gundeck.Options
-import Gundeck.React
 import Network.Wai as Wai
 import Network.Wai.Utilities.Server hiding (serverPort)
 import Util.Options
 
-import qualified Control.Concurrent.Async as Async
-import qualified Gundeck.Aws as Aws
 import qualified Network.Wai.Middleware.Gzip as GZip
 import qualified Network.Wai.Middleware.Gunzip as GZip
 import qualified System.Logger as Log
@@ -32,11 +29,9 @@ run o = do
         versionCheck schemaVersion
     let l = e^.applog
     s <- newSettings $ defaultServer (unpack $ o^.optGundeck.epHost) (o^.optGundeck.epPort) l m
-    lst <- Async.async $ Aws.execute (e^.awsEnv) (Aws.listen (runDirect e . onEvent))
     runSettingsWithShutdown s (middleware e $ app e) 5 `finally` do
         Log.info l $ Log.msg (Log.val "Shutting down ...")
         shutdown (e^.cstate)
-        Async.cancel lst
         Log.close (e^.applog)
   where
     middleware :: Env -> Wai.Middleware

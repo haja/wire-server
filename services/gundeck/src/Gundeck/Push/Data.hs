@@ -20,8 +20,8 @@ import qualified System.Logger.Class as Log
 lookup :: (MonadClient m, MonadLogger m) => UserId -> Consistency -> m [Address]
 lookup u c = foldM mk [] =<< retry x1 (query q (params c (Identity u)))
   where
-    q :: PrepQuery R (Identity UserId) (UserId, Transport, AppName, Token, Maybe EndpointArn, ConnId, Maybe ClientId)
-    q = "select usr, transport, app, ptoken, arn, connection, client from user_push where usr = ?"
+    q :: PrepQuery R (Identity UserId) (UserId, Transport, AppName, Token, ConnId, Maybe ClientId)
+    q = "select usr, transport, app, ptoken, connection, client from user_push where usr = ?"
 
     mk as r = maybe as (:as) <$> mkAddr r
 
@@ -44,10 +44,10 @@ erase u = retry x5 $ write q (params Quorum (Identity u))
     q = "delete from user_push where usr = ?"
 
 mkAddr :: (MonadClient m, MonadLogger m)
-       => (UserId, Transport, AppName, Token, Maybe EndpointArn, ConnId, Maybe ClientId)
+       => (UserId, Transport, AppName, Token, ConnId, Maybe ClientId)
        -> m (Maybe Address)
-mkAddr (usr, trp, app, tok, arn, con, clt) = case (clt, arn) of
-    (Just c, Just a) -> return $! Just $! Address usr a con (pushToken trp app tok c)
+mkAddr (usr, trp, app, tok, con, clt) = case clt of
+    (Just c) -> return $! Just $! Address usr con (pushToken trp app tok c)
     _                -> do
         Log.info $ field "user" (toByteString usr)
             ~~ field "transport" (show trp)

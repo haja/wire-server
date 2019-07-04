@@ -146,18 +146,13 @@ instance FromJSON ClientInfo where
 instance FromJSON Address where
   parseJSON = withObject "Address" $ \adr -> Address
     <$> (adr Aeson..: "user")
-    <*> (mkFakeAddrEndpoint <$> adr Aeson..: "endpoint")
+    -- <*> (mkFakeAddrEndpoint <$> adr Aeson..: "endpoint")
     <*> (adr Aeson..: "conn")
     <*> (pushToken
           <$> (adr Aeson..: "transport")
           <*> (adr Aeson..: "app")
           <*> (adr Aeson..: "token")
           <*> (adr Aeson..: "client"))
-
-mkFakeAddrEndpoint :: (Text, Transport, AppName) -> EndpointArn
-mkFakeAddrEndpoint (epid, transport, app) = Aws.mkSnsArn Tokyo (Account "acc") eptopic
-  where eptopic = mkEndpointTopic (ArnEnv "") transport app (EndpointId epid)
-
 
 ----------------------------------------------------------------------
 -- env generators
@@ -275,7 +270,7 @@ genProtoAddress _addrUser _addrClient = do
   _addrTransport :: Transport <- QC.elements [minBound..]
   arnEpId :: Text <- arbitrary
   let _addrApp = "AppName"
-      _addrEndpoint = mkFakeAddrEndpoint (arnEpId, _addrTransport, _addrApp)
+      -- _addrEndpoint = mkFakeAddrEndpoint (arnEpId, _addrTransport, _addrApp)
       _addrConn = fakeConnId _addrClient
       _addrPushToken = pushToken _addrTransport _addrApp (Token "tok") _addrClient
   pure Address {..}

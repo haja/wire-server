@@ -7,7 +7,6 @@ module Gundeck.Push.Native.Types
     , addrTransport
     , addrApp
     , addrToken
-    , addrEndpoint
     , addrConn
     , addrClient
     , addrEqualClient
@@ -32,7 +31,7 @@ import Gundeck.Types.Push.V2 (PushToken)
 -- | Native push address information of a device.
 data Address = Address
     { _addrUser      :: !UserId
-    , _addrEndpoint  :: !EndpointArn -- TODO push: we need to change this, must be an HTTP endpoint for pushAdapter. including TLS cert maybe?
+    -- , _addrEndpoint  :: !EndpointArn -- TODO push: we need to change this, must be an HTTP endpoint for pushAdapter. including TLS cert maybe?
     , _addrConn      :: !ConnId
     , _addrPushToken :: !PushToken
     }
@@ -62,7 +61,7 @@ instance Show Address where
            . showString "{ user = " . shows (a^.addrUser)
            . showString ", transport = " . shows (a^.addrTransport)
            . showString ", app = " . shows (a^.addrApp)
-           . showString ", endpoint = " . shows (a^.addrEndpoint)
+           -- . showString ", endpoint = " . shows (a^.addrEndpoint)
            . showString ", conn = " . shows (a^.addrConn)
            . showString ", client = " . shows (a^.addrClient)
            $ "}"

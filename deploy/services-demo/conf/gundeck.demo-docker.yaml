@@ -23,7 +23,7 @@ aws:
 settings:
   httpPoolSize: 1024
   notificationTTL: 24192200
-  bulkPush: false
+  bulkPush: true
 
 logLevel: Info
 logNetStrings: false
