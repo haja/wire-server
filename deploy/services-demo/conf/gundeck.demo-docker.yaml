@@ -2,6 +2,10 @@ gundeck:
   host: gundeck
   port: 8086
 
+  # push-integration:
+  # host: push-integration
+  # port: 8089
+
 cassandra:
   endpoint:
     host: cassandra

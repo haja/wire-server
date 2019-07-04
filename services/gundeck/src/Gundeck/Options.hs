@@ -43,6 +43,7 @@ makeLenses ''Settings
 
 data Opts = Opts
     { _optGundeck   :: !Endpoint       -- ^ Hostname and port to bind to
+    -- TODO push: hook here for configuring push-integration options
     , _optCassandra :: !CassandraOpts
     , _optRedis     :: !Endpoint
     , _optAws       :: !AWSOpts
