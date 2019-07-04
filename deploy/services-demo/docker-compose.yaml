@@ -158,3 +158,19 @@ services:
     working_dir: /configs
     networks:
       - docker-ephemeral_demo_wire
+
+  push-integration:
+    image: sba-research.at/wire/push-integration:local
+    ports:
+      - 127.0.0.1:8089:8089
+    volumes:
+      - ./:/configs
+    working_dir: /configs
+    environment:
+      - SPRING_APPLICATION_JSON={"server":{"port":8089}}
+    external_links:
+      - demo_wire_redis:redis
+      - demo_wire_sqs:sqs
+      - demo_wire_localstack:sns
+    networks:
+      - docker-ephemeral_demo_wire

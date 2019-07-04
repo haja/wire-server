@@ -145,6 +145,7 @@ docker-services:
 	$(MAKE) -C services/spar docker
 	$(MAKE) docker-exe-zauth
 	$(MAKE) -C services/nginz docker
+	$(MAKE) -C services/push-integration docker
 
 DOCKER_DEV_NETWORK := --net=host
 DOCKER_DEV_VOLUMES := -v `pwd`:/wire-server
