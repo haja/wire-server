@@ -98,7 +98,10 @@ public class AppResource {
     val token = tokenJson.replace("\"", "");
     log.info("sending message for token: {}", token);
     registrations.get(token).peek(pushMessage(token))
-        .onEmpty(() -> log.warn("not registered, cannot send message. registrations: {}", registrations));
+        .onEmpty(() -> {
+          log.error("not registered, cannot send message. registrations: {}", registrations);
+          throw new NotRegisteredException();
+        });
   }
 
   private Consumer<Tuple2<String, byte[]>> pushMessage(String token) {
@@ -186,5 +189,9 @@ public class AppResource {
       java.util.Map<String, String> data;
       String token;
     }
+  }
+
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  public static class NotRegisteredException extends RuntimeException {
   }
 }

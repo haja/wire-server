@@ -337,7 +337,6 @@ addToken (uid ::: cid ::: req ::: _) = do
         let trp = t^.tokenTransport
         let app = t^.tokenApp
         let tok = t^.token
-        -- TODO push: expecting hardcoded relay connection for now
         PushRelay.create app tok
         Data.insert uid trp app tok cid (t^.tokenClient)
         return ()
