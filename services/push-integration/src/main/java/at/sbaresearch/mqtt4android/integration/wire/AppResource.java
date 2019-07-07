@@ -93,22 +93,19 @@ public class AppResource {
         .exchange("http://gundeck:8086/push/tokens/{pid}", req.getMethod(), req, Object.class, pid);
   }
 
-  @RequestMapping(value = "/send", method = RequestMethod.POST)
-  public void sendMessage(@RequestBody String tokenJson) {
-    val token = tokenJson.replace("\"", "");
+  @PostMapping(value = "/send")
+  public void sendMessage(@RequestBody PushRequest request) {
+    val token = request.message.token;
     log.info("sending message for token: {}", token);
-    registrations.get(token).peek(pushMessage(token))
+    registrations.get(token).peek(pushMessage(request))
         .onEmpty(() -> {
           log.error("not registered, cannot send message. registrations: {}", registrations);
           throw new NotRegisteredException();
         });
   }
 
-  private Consumer<Tuple2<String, byte[]>> pushMessage(String token) {
+  private Consumer<Tuple2<String, byte[]>> pushMessage(PushRequest req) {
     return regTuple -> {
-      val data = HashMap.of("message", "dummy");
-      val req = createPushRequest(data, token);
-
       val cert = regTuple._2;
       try {
         val requestFactory = setupRequestFactory(cert);
@@ -120,10 +117,6 @@ public class AppResource {
         log.error("cannot create ssl connection", e);
       }
     };
-  }
-
-  private PushRequest createPushRequest(HashMap<String, String> data, String token) {
-    return new PushRequest(false, new Message(data.toJavaMap(), token));
   }
 
   private HttpComponentsClientHttpRequestFactory setupRequestFactory(byte[] cert) throws Exception {
