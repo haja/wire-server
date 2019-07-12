@@ -165,9 +165,10 @@ services:
       - 127.0.0.1:8089:8089
     volumes:
       - ./:/configs
+      - ./db-store:/db-store
     working_dir: /configs
     environment:
-      - SPRING_APPLICATION_JSON={"server":{"port":8089}}
+      - SPRING_CONFIG_ADDITIONAL_LOCATION=file:/configs/conf/push-integration.demo-docker.yml
     external_links:
       - demo_wire_redis:redis
       - demo_wire_sqs:sqs

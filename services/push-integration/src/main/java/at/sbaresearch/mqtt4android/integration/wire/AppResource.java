@@ -1,20 +1,15 @@
 package at.sbaresearch.mqtt4android.integration.wire;
 
 import at.sbaresearch.mqtt4android.integration.wire.AppResource.AppRegistrationRequest.Token;
-import at.sbaresearch.mqtt4android.integration.wire.AppResource.PushRequest.Message;
 import at.sbaresearch.mqtt4android.pinning.PinningSslFactory;
-import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.collection.HashMap;
 import io.vavr.collection.Map;
-import lombok.AccessLevel;
-import lombok.Builder;
+import lombok.*;
 import lombok.ToString.Exclude;
-import lombok.Value;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.HttpClients;
@@ -30,15 +25,11 @@ import java.util.function.Consumer;
 @RestController
 @Slf4j
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
+@AllArgsConstructor
 public class AppResource {
 
-  @NonFinal
-  Map<String, Tuple2<String, byte[]>> registrations = HashMap.empty();
+  RegistrationRepository registrationRepository;
   RestTemplateBuilder templateBuilder;
-
-  public AppResource(RestTemplateBuilder builder) {
-    this.templateBuilder = builder;
-  }
 
   @PostMapping(value = "/push/tokens",
       consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
@@ -46,10 +37,9 @@ public class AppResource {
       @RequestHeader HttpHeaders headers) {
     log.info("postPush called, req: {}", reg);
 
-    // TODO store in DB
     if (reg.token.relayUrl != null && reg.token.relayCert != null) {
-      registrations =
-          registrations.put(reg.token.token, Tuple.of(reg.token.relayUrl, fromBase64(reg.token.relayCert)));
+      registrationRepository.addDeviceRelay(reg.token.token,
+          new RelayConnection(reg.token.relayUrl, fromBase64(reg.token.relayCert)));
     } else {
       log.warn("registration cancelled, relayUrl or cert is null!");
     }
@@ -97,22 +87,21 @@ public class AppResource {
   public void sendMessage(@RequestBody PushRequest request) {
     val token = request.message.token;
     log.info("sending message for token: {}", token);
-    registrations.get(token).peek(pushMessage(request))
+    registrationRepository.getDeviceRelay(token).peek(pushMessage(request))
         .onEmpty(() -> {
-          log.error("not registered, cannot send message. registrations: {}", registrations);
+          log.error("not registered, cannot send message. req: {}", request);
           throw new NotRegisteredException();
         });
   }
 
-  private Consumer<Tuple2<String, byte[]>> pushMessage(PushRequest req) {
-    return regTuple -> {
-      val cert = regTuple._2;
+  private Consumer<RelayConnection> pushMessage(PushRequest req) {
+    return conn -> {
       try {
-        val requestFactory = setupRequestFactory(cert);
+        val requestFactory = setupRequestFactory(conn.getRelayCert());
         templateBuilder
             .requestFactory(() -> requestFactory)
             .build()
-            .postForLocation(regTuple._1, req);
+            .postForLocation(conn.getRelayUrl(), req);
       } catch (Exception e) {
         log.error("cannot create ssl connection", e);
       }

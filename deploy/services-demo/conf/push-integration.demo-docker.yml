@@ -1,0 +1,20 @@
+server:
+  port: 8089
+
+spring:
+  datasource:
+    url: "jdbc:h2:/db-store/push-integration.h2;DB_CLOSE_ON_EXIT=FALSE;AUTO_SERVER=TRUE"
+  h2:
+    console:
+      enabled: false
+  insights:
+    web:
+      log-request-details: true
+  http:
+    log-request-details: true
+
+logging:
+  level:
+    web: "INFO"
+    filter:
+      CommonsRequestLoggingFilter: "INFO"
