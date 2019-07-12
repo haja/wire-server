@@ -9,12 +9,14 @@ spring:
       enabled: false
   insights:
     web:
-      log-request-details: true
+      log-request-details: false
   http:
-    log-request-details: true
+    log-request-details: false
 
 logging:
   level:
+    org:
+      springframework: "INFO"
     web: "INFO"
     filter:
-      CommonsRequestLoggingFilter: "INFO"
+      CommonsRequestLoggingFilter: "WARN"
