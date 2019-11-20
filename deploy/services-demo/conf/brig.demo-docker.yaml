@@ -100,7 +100,7 @@ optSettings:
   setTeamInvitationTimeout: 1814400 # 21 days
   setUserMaxConnections: 1000
   setCookieDomain: brig
-  setCookieInsecure: false
+  setCookieInsecure: true # allow http cookies
   setUserCookieRenewAge: 1209600 # 14 days
   setUserCookieLimit: 32
   setUserCookieThrottle:
