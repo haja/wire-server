@@ -175,3 +175,5 @@ services:
       - demo_wire_localstack:sns
     networks:
       - docker-ephemeral_demo_wire
+    extra_hosts:
+      - "remotedocker.lan:128.131.169.34" # analysis machines external ip
